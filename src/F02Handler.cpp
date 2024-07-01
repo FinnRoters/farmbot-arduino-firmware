@@ -1,7 +1,7 @@
 /*
  * F02Handler.cpp
  *
- *  Created on: 13 june 2024
+ *  Created on: 1 july 2024
  *      Author: Finn Roters
  */
 
@@ -9,9 +9,10 @@
 
 static F02Handler *instance;  // defines a static pointer to an "F02Handler" instance (ensures that there is only one instance of the class).
 
-unsigned int F02Handler::pulsePerSecond;
 unsigned int F02Handler::pulse;
-
+float F02Handler::totalMilliLiters;
+const float F02Handler::conversionFactor = 1.96;    // The irrigation system dispenses 42.64 ml per second and 21.79 pulses per second are measured. If 42.64 ml is divided by 21.79 pulses, the result is 1.96 ml per pulse.
+const float F02Handler::offset = 18.75;  // The milliliter output per second is not linear, but can be described by the polynomial 42.64 ml * t + 18.75 ml. The offset is 18.75 ml.
 // Check whether instance points to nullptr (i.e. no valid memory area) (if yes, a new instance of F02Handler is created).
 F02Handler *F02Handler::getInstance()
 {
@@ -32,13 +33,8 @@ int F02Handler::execute(Command *command)
 {
   unsigned int valvePin = 10;               // Pin for the water valve.
   unsigned int sensorPin = 2;              // Pin 2 (Arduino Mega 2560) Interrupt capable
-  float calibrationFactor = 7.5;          // According to the data sheet: 450 pulses / L -> Calibration Factor: 450 / 60 = 7.5
-  pulsePerSecond = 0;
   pulse = 0;
-  float flowRate = 0.0;
-  long flowMl = 0;
-  long totalMl = 0;
-  unsigned long oldTime = 0;
+  totalMilliLiters = 0.0;
   pinMode(sensorPin, INPUT);
   attachInterrupt(digitalPinToInterrupt(sensorPin), F02Handler::pulseCount, RISING);
 
@@ -49,20 +45,11 @@ int F02Handler::execute(Command *command)
   Serial.print("command->getN(): ");
   Serial.println(command->getN());  // Output of the value of command->getN()
 
-  while(totalMl < command->getN()){
-    if((millis() - oldTime) > 1000) {
-      detachInterrupt(sensorPin);   // Deactivate interrupt for the calculations.
-      Serial.print("Pulse : ");
-      Serial.println(pulse);
-      flowRate = ((1000.0 / (millis() - oldTime))* pulsePerSecond) / calibrationFactor;  
-      flowMl = (flowRate/60) * 1000;     // Millilitre per second
-      totalMl += flowMl;            // each second add the measured millilitre
-      Serial.print("Total Ml : ");
-      Serial.println(totalMl);
-      pulsePerSecond = 0;
-      oldTime = millis();
-      attachInterrupt(sensorPin, F02Handler::pulseCount, RISING);
-    }
+  while(totalMilliLiters < command->getN()){
+    Serial.print("Pulse : ");
+    Serial.println(pulse);  
+    Serial.print("Total Ml : ");
+    Serial.println(totalMilliLiters);
   }
   // Close the water valve
   PinControl::getInstance()->writeValue(valvePin, 0, 0); // Set the pin of the water valve to low (0 = digital).
@@ -71,8 +58,6 @@ int F02Handler::execute(Command *command)
 }
 
 void F02Handler::pulseCount() {
-  // Increment the pulse counter
-  // Serial.println("INTERRUPT");
-  pulsePerSecond++;
   pulse++;
+  totalMilliLiters = pulse * conversionFactor + offset;
 }
