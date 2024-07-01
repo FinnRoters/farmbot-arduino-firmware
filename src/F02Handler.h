@@ -1,7 +1,7 @@
 /*
  * F02Handler.h
  *
- *  Created on: 13 june 2024
+ *  Created on: 1 july 2024
  *      Author: Finn Roters
  */
 
@@ -24,8 +24,11 @@ private: // only accessible within the "F02Handler" class
   F02Handler(F02Handler const &);         // private copy constructor (This prevents the class from being copied).
   void operator=(F02Handler const &);     // private assignment operator (This prevents objects from being assigned to the class).
   static void pulseCount();               // Function pulseCount is declared statically in order to exist during the entire runtime of the programme and only be valid in this area.
-  static unsigned int pulsePerSecond;      // Declare pulsePerSecond and pulse also staisch.
   static unsigned int pulse;
+  static float totalMilliLiters;
+  static const float conversionFactor;
+  static const float offset;
 };
 
 #endif /* F02HANDLER_H_ */
+
